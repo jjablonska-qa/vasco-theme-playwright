@@ -1,0 +1,35 @@
+{
+  "name": "playwright-tests",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test:free-shipping": "npx playwright test tests/free-shipping",
+    "report:free-shipping": "open audit-report.html",
+    "test:koszyk": "npx playwright test tests/koszyk/koszyk-*.spec.js",
+    "test:koszyk:optimized": "npx playwright test tests/koszyk-optimized/markets/koszyk-optimized-*.spec.js",
+    "test:koszyk:optimized:stable": "npx playwright test tests/koszyk-optimized/markets/koszyk-optimized-*.spec.js --workers=1",
+    "test:koszyk:optimized:chromium": "npx playwright test tests/koszyk-optimized/markets/koszyk-optimized-*.spec.js --project=chromium",
+    "test:koszyk:optimized:firefox": "npx playwright test tests/koszyk-optimized/markets/koszyk-optimized-*.spec.js --project=firefox",
+    "test:koszyk:optimized:webkit": "npx playwright test tests/koszyk-optimized/markets/koszyk-optimized-*.spec.js --project=webkit",
+    "test:koszyk:chromium": "npx playwright test tests/koszyk/koszyk-*.spec.js --project=chromium",
+    "test:koszyk:firefox": "npx playwright test tests/koszyk/koszyk-*.spec.js --project=firefox",
+    "test:koszyk:webkit": "npx playwright test tests/koszyk/koszyk-*.spec.js --project=webkit",
+    "test:koszyk:headed:chromium": "npx playwright test tests/koszyk/koszyk-*.spec.js --project=chromium --headed",
+    "test:vies:chromium": "npx playwright test tests/vies/vies-checkout-*.js --project=chromium --workers=1",
+    "test:vies:firefox": "npx playwright test tests/vies/vies-checkout-*.js --project=firefox --workers=1",
+    "test:vies:webkit": "npx playwright test tests/vies/vies-checkout-*.js --project=webkit --workers=1",
+    "test:vies:all": "npm run test:vies:chromium && npm run test:vies:firefox && npm run test:vies:webkit",
+    "test:vies:headed:chromium": "npx playwright test tests/vies/vies-checkout-*.js --project=chromium --workers=1 --headed",
+    "test:vies:headed:firefox": "npx playwright test tests/vies/vies-checkout-*.js --project=firefox --workers=1 --headed",
+    "test:vies:headed:webkit": "npx playwright test tests/vies/vies-checkout-*.js --project=webkit --workers=1 --headed"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "@types/node": "^25.4.0"
+  }
+}

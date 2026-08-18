@@ -17,7 +17,9 @@ const configuredWorkers = process.env.PW_WORKERS ? Number(process.env.PW_WORKERS
 
 export default defineConfig({
   testDir: './tests',
-  testMatch: /.*\.js/,
+  // Only collect actual test files. Helpers used by VIES must not be treated as tests
+  // when Playwright is invoked with a directory path.
+  testMatch: /(?:\.spec|vies-checkout-.*)\.js/,
   /* Run tests in files in parallel */
   fullyParallel: failFast ? false : true,
   /* Stop the whole run after the first failure only in explicit fail-fast mode. */
@@ -33,6 +35,8 @@ export default defineConfig({
     ['line'],
     ['html', { open: 'never' }],
     ['./reporters/free-shipping-audit-reporter.cjs'],
+    ['./reporters/vies-audit-reporter.cjs'],
+    ['./reporters/cod-audit-reporter.cjs'],
   ],
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {

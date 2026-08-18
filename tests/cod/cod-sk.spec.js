@@ -36,7 +36,7 @@ const SK_CUSTOMER = {
 
 const scenarios = [
   { quantity: 1, expectedCodVisible: true, label: 'ponizej limitu COD' },
-  { quantity: 2, expectedCodVisible: false, label: 'na limicie COD' },
+  { quantity: 2, expectedCodVisible: true, label: 'na limicie COD' },
   { quantity: 3, expectedCodVisible: false, label: 'powyzej limitu COD' },
 ];
 

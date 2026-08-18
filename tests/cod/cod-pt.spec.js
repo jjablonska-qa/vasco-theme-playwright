@@ -8,6 +8,8 @@ const ALL_PRODUCTS_PATH = '/todos-produtos/';
 const CHECKOUT_PATH = '/encomenda';
 const CART_PATH = '/carrinho?action=show';
 const PRODUCT_Q1 = { id: '38' };
+const PRODUCT_M4 = { id: '62' };
+const PRODUCT_CALL_TRANSLATOR_TOP_UP = { id: '65' };
 
 const COD_COMPATIBLE_SHIPPING_METHODS = [
   'UPS Express 24/48h (contra reembolso)',
@@ -34,15 +36,31 @@ const PT_CUSTOMER = {
 };
 
 const scenarios = [
-  { quantity: 1, expectedCodVisible: true, label: 'ponizej limitu COD' },
-  { quantity: 2, expectedCodVisible: false, label: 'na limicie COD - obecne zachowanie checkoutu' },
-  { quantity: 3, expectedCodVisible: false, label: 'powyzej limitu COD' },
+  {
+    name: 'poniżej 999 EUR',
+    products: [{ product: PRODUCT_Q1, quantity: 1 }],
+    expectedCodVisible: true,
+  },
+  {
+    name: 'dokładnie 999 EUR',
+    products: [
+      { product: PRODUCT_Q1, quantity: 1 },
+      { product: PRODUCT_M4, quantity: 1 },
+      { product: PRODUCT_CALL_TRANSLATOR_TOP_UP, quantity: 3 },
+    ],
+    expectedCodVisible: true,
+  },
+  {
+    name: 'powyżej 999 EUR',
+    products: [{ product: PRODUCT_Q1, quantity: 2 }],
+    expectedCodVisible: false,
+  },
 ];
 
 for (const scenario of scenarios) {
-  test(`PT COD dla ${scenario.quantity}x Q1 jest ${scenario.expectedCodVisible ? 'widoczne' : 'ukryte'} - ${scenario.label}`, async ({ page, browserName }) => {
+  test(`PT COD dla zamówienia ${scenario.name} jest ${scenario.expectedCodVisible ? 'widoczne' : 'ukryte'}`, async ({ page, browserName }) => {
     test.skip(browserName === 'firefox', 'PT checkout cart counter is currently unstable on Firefox.');
-    await seedCartWithQ1Quantity(page, scenario.quantity);
+    await seedCart(page, scenario.products);
     await goToCheckout(page);
     await completePersonalInformation(page, browserName);
     await completeAddress(page, PT_CUSTOMER);
@@ -51,14 +69,18 @@ for (const scenario of scenarios) {
   });
 }
 
-async function seedCartWithQ1Quantity(page, quantity) {
+async function seedCart(page, products) {
   await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
   await dismissCookieBanner(page);
   await closeBlockingPopups(page);
   await openAllProducts(page);
 
-  for (let index = 0; index < quantity; index += 1) {
-    await addProductToCart(page, PRODUCT_Q1, index + 1);
+  let expectedCartCount = 0;
+  for (const { product, quantity } of products) {
+    for (let index = 0; index < quantity; index += 1) {
+      expectedCartCount += 1;
+      await addProductToCart(page, product, expectedCartCount);
+    }
   }
 }
 

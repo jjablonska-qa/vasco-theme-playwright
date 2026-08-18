@@ -10,11 +10,10 @@ const CART_PATH = '/carrello?action=show';
 const PRODUCT_Q1 = { id: '38' };
 
 const COD_COMPATIBLE_SHIPPING_PATTERNS = [
-  /contrassegno/i,
-  /pagamento alla consegna/i,
-  /alla consegna/i,
+  /UPS Express/i,
+  /GLS National Express\s*\(pagamento alla consegna\)/i,
 ];
-const COD_PAYMENT_LABEL = 'Pagamento alla consegna';
+const COD_PAYMENT_PATTERN = /Pagamento tramite contrassegno\s*\(gratuito\)/i;
 
 const IT_CUSTOMER = {
   firstName: 'Automat',
@@ -25,12 +24,13 @@ const IT_CUSTOMER = {
   address2: '2',
   postcode: '00100',
   city: 'Roma',
+  province: 'Roma',
   country: 'Italia',
 };
 
 const scenarios = [
-  { quantity: 1, expectedCodVisible: false, label: 'ponizej limitu COD' },
-  { quantity: 2, expectedCodVisible: false, label: 'na limicie COD' },
+  { quantity: 1, expectedCodVisible: true, label: 'ponizej limitu COD' },
+  { quantity: 2, expectedCodVisible: true, label: 'na limicie COD' },
   { quantity: 3, expectedCodVisible: false, label: 'powyzej limitu COD' },
 ];
 
@@ -118,7 +118,6 @@ async function completeAddress(page, customer) {
     await selectVisibleOption(page, customer.country).catch(() => {});
     await page.waitForTimeout(300);
   }
-
   await chooseIndividualCustomerType(page);
   await fillByPlaceholder(page, /nome/i, customer.firstName);
   await fillByPlaceholder(page, /cognome/i, customer.lastName);
@@ -127,6 +126,7 @@ async function completeAddress(page, customer) {
   await fillByPlaceholder(page, /cap|codice postale/i, customer.postcode);
   await fillByPlaceholder(page, /città|citta|comune/i, customer.city);
   await fillPhoneNumber(page, customer.phone);
+  await selectProvince(page, customer.province);
 
   const continueButton = page.getByRole('button', { name: /Continua/i }).last();
   await expect(continueButton).toBeVisible({ timeout: 15000 });
@@ -137,7 +137,7 @@ async function completeAddress(page, customer) {
   await expect
     .poll(async () => {
       const bodyText = await page.locator('body').innerText().catch(() => '');
-      return /Scegli il tuo metodo di spedizione|Metodo di spedizione|Spedizione|Come desideri pagare\?|Pagamento/i.test(bodyText);
+      return /Scegli il tuo metodo di spedizione|Come desideri pagare\?/i.test(bodyText);
     }, { timeout: 20000 })
     .toBeTruthy()
     .catch(async () => {
@@ -145,7 +145,7 @@ async function completeAddress(page, customer) {
       await expect
         .poll(async () => {
           const bodyText = await page.locator('body').innerText().catch(() => '');
-          return /Scegli il tuo metodo di spedizione|Metodo di spedizione|Spedizione|Come desideri pagare\?|Pagamento/i.test(bodyText);
+          return /Scegli il tuo metodo di spedizione|Come desideri pagare\?/i.test(bodyText);
         }, { timeout: 15000 })
         .toBeTruthy();
     });
@@ -158,8 +158,8 @@ async function waitForShippingAndPaymentStep(page) {
       const loadingVisible = await hasVisibleText(page, /Stiamo verificando i tuoi dati|Verifica dei dati/i);
       if (loadingVisible) return false;
 
-      const shippingReady = await hasVisibleText(page, /Scegli il tuo metodo di spedizione|Metodo di spedizione|Spedizione/i);
-      const paymentReady = await hasVisibleText(page, /Come desideri pagare\?|Pagamento/i);
+      const shippingReady = await hasVisibleText(page, /Scegli il tuo metodo di spedizione/i);
+      const paymentReady = await hasVisibleText(page, /Come desideri pagare\?/i);
       return shippingReady || paymentReady;
     }, { timeout: 30000 })
     .toBeTruthy();
@@ -236,7 +236,7 @@ async function isShippingMethodSelected(page, shippingLabel) {
 }
 
 async function assertCodVisibility(page, expectedVisible) {
-  const codLocator = page.getByText(new RegExp(escapeRegExp(COD_PAYMENT_LABEL), 'i')).first();
+  const codLocator = page.getByText(COD_PAYMENT_PATTERN).first();
 
   if (expectedVisible) {
     await expect(codLocator).toBeVisible({ timeout: 15000 });
@@ -251,7 +251,7 @@ async function assertCodVisibility(page, expectedVisible) {
 async function continueToPaymentStep(page) {
   const isPaymentStepVisible = async () => {
     const bodyText = await page.locator('body').innerText().catch(() => '');
-    return /Come desideri pagare\?|Pagamento|Carta|PayPal|bonifico/i.test(bodyText);
+    return /Come desideri pagare\?|Carta|PayPal|bonifico|Pagamento tramite contrassegno/i.test(bodyText);
   };
 
   if (await isPaymentStepVisible()) {
@@ -719,6 +719,27 @@ async function selectVisibleOption(page, value) {
   }
 
   throw new Error(`Visible select option "${value}" not found.`);
+}
+
+async function selectProvince(page, province) {
+  const selects = page.locator('select');
+
+  for (let index = (await selects.count()) - 1; index >= 0; index -= 1) {
+    const select = selects.nth(index);
+    if (!(await select.isVisible().catch(() => false))) continue;
+
+    const hasProvince = await select
+      .locator('option')
+      .evaluateAll((options, target) => options.some(option => option.textContent?.trim() === target), province)
+      .catch(() => false);
+    if (!hasProvince) continue;
+
+    await select.selectOption({ label: province });
+    await expect(select.locator('option:checked')).toHaveText(province);
+    return;
+  }
+
+  throw new Error(`Visible Provincia select with option "${province}" was not found.`);
 }
 
 function createUniqueEmail(email) {

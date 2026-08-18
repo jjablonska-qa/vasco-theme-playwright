@@ -11,15 +11,13 @@ const PRODUCT_Q1 = { id: '38' };
 
 const COD_PAYMENT_LABEL = 'Mokėjimas pristatymo metu';
 const COD_COMPATIBLE_SHIPPING_METHODS = [
-  'Venipack',
-  'DHL Express Worldwide (apmokėti užsakant)',
-  'UPS Express (apmokėti užsakant)',
-  'UPS Standard (apmokėti užsakant)',
-  'DHL Express Economy Select (apmokėti užsakant)',
+  'Venipack Pristatymas į namus',
 ];
 const COD_PAYMENT_PATTERNS = [
   /Mokėjimas pristatymo metu/i,
   /Mokejimas pristatymo metu/i,
+  /Apmokėti kurjeriui pristatymo metu/i,
+  /Apmoketi kurjeriui pristatymo metu/i,
   /Mokėti pristatymo metu/i,
   /Moketi pristatymo metu/i,
   /Grynais.*kurjeri/i,
@@ -40,8 +38,8 @@ const LT_CUSTOMER = {
 };
 
 const scenarios = [
-  { quantity: 1, expectedCodVisible: false, label: 'ponizej limitu COD' },
-  { quantity: 2, expectedCodVisible: false, label: 'na limicie COD' },
+  { quantity: 1, expectedCodVisible: true, label: 'ponizej limitu COD' },
+  { quantity: 2, expectedCodVisible: true, label: 'na limicie COD' },
   { quantity: 3, expectedCodVisible: false, label: 'powyzej limitu COD' },
 ];
 
@@ -247,12 +245,13 @@ async function assertLithuanianCodVisibility(page, expectedVisible) {
   for (const shippingLabel of COD_COMPATIBLE_SHIPPING_METHODS) {
     await openShippingStep(page);
 
-    const shippingOption = page.getByText(new RegExp(escapeRegExp(shippingLabel), 'i')).first();
-    if (!(await shippingOption.isVisible().catch(() => false))) {
-      continue;
-    }
-
-    await selectShippingMethod(page, shippingLabel);
+    // Venipack starts as a collapsed carrier card. selectShippingMethod()
+    // expands it before looking for the concrete home-delivery/pickup option.
+    await selectShippingMethod(page, shippingLabel).catch(() => {});
+    const selectedOption = await findFirstVisibleLocator(
+      page.getByText(new RegExp(escapeRegExp(shippingLabel), 'i'))
+    );
+    if (!selectedOption) continue;
     await continueToPaymentStep(page);
 
     const codVisible = await isCodVisible(page);
@@ -274,7 +273,7 @@ async function assertLithuanianCodVisibility(page, expectedVisible) {
 async function continueToPaymentStep(page) {
   const isPaymentStepVisible = async () => {
     const bodyText = await page.locator('body').innerText().catch(() => '');
-    return /Kaip norėtumėte apmokėti|Kaip noretumete apmoketi|Kaip norėtumėte sumokėti|Kaip noretumete sumoketi|Apmokėjimas|Apmokejimas|Apmokėti kortele|Apmoketi kortele|Apmokėti bankiniu pavedimu|Apmoketi bankiniu pavedimu|Paysera/i.test(bodyText);
+    return /Kaip norėtumėte apmokėti|Kaip noretumete apmoketi|Kaip norėtumėte sumokėti|Kaip noretumete sumoketi|Apmokėti kortele|Apmoketi kortele|Apmokėti bankiniu pavedimu|Apmoketi bankiniu pavedimu|Paysera/i.test(bodyText);
   };
 
   if (await isPaymentStepVisible()) {

@@ -7,4 +7,5 @@ node_modules/
 /playwright/.cache/
 /playwright/.auth/
 /audit-report.html
+/vies-audit-report.html
 /.codex-backups/

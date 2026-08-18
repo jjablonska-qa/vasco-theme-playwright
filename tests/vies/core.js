@@ -5,7 +5,9 @@ const MEDIUM_TIMEOUT = 10000;
 const LONG_TIMEOUT = 20000;
 const VIES_TIMEOUT = 30000;
 const NAVIGATION_RETRY_DELAY = 1500;
-const serialVies = process.env.VIES_SERIAL !== '0';
+// Parallel runs are safe: every scenario has its own browser context and unique e-mail.
+// Use VIES_SERIAL=1 only while diagnosing a storefront that cannot handle concurrency.
+const serialVies = process.env.VIES_SERIAL === '1';
 const debugVies = process.env.DEBUG_VIES === '1';
 
 export function registerViesMarketTests(test, market) {
@@ -16,12 +18,16 @@ export function registerViesMarketTests(test, market) {
     test.setTimeout(120000);
 
     for (const scenario of market.scenarios) {
-      test(`Checkout VIES ${scenario.key} - ${scenario.description}`, async ({ page, browserName }) => {
+      test(`Checkout VIES ${scenario.key} - ${scenario.description}`, async ({ page, browserName }, testInfo) => {
         if (browserName === 'firefox' || browserName === 'webkit') {
           test.setTimeout(180000);
         }
 
-        await runScenario(page, market, scenario, browserName);
+        const priceVerification = await runScenario(page, market, scenario, browserName);
+        await testInfo.attach('VIES price verification', {
+          body: Buffer.from(JSON.stringify(priceVerification)),
+          contentType: 'application/json',
+        });
       });
     }
   });
@@ -66,8 +72,21 @@ async function runScenario(page, market, scenario, browserName) {
   }
 
   const summaryAfterAddressSave = await readSummary(page, market);
-  await assertScenarioOutcome(page, market, scenario, summaryBeforeAddressSave, summaryAfterAddressSave, browserName);
+  const summaryAfterVerification = await assertScenarioOutcome(
+    page,
+    market,
+    scenario,
+    summaryBeforeAddressSave,
+    summaryAfterAddressSave,
+    browserName,
+  );
   logViesDebug(market, scenario, 'asserted outcome');
+
+  return {
+    expectedTotalChange: scenario.expectedTotalChangeByBrowser?.[browserName] ?? scenario.expectedTotalChange,
+    before: summaryBeforeAddressSave,
+    after: summaryAfterVerification,
+  };
 }
 
 function createScenarioBusinessData(market, scenario, browserName) {
@@ -1276,7 +1295,7 @@ async function assertScenarioOutcome(page, market, scenario, summaryBeforeAddres
     ];
 
     expect(positiveSignals.some(Boolean)).toBe(true);
-    return;
+    return finalSummary;
   }
 
   const finalSummary = await waitForSummaryMatch(
@@ -1291,6 +1310,8 @@ async function assertScenarioOutcome(page, market, scenario, summaryBeforeAddres
   if (summaryBeforeAddressSave.tax !== null && finalSummary.tax !== null) {
     expect(roundPrice(finalSummary.tax)).toBe(roundPrice(summaryBeforeAddressSave.tax));
   }
+
+  return finalSummary;
 }
 
 async function waitForSummaryMatch(page, market, predicate, timeoutMs) {

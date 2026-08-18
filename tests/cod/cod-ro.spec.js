@@ -38,37 +38,20 @@ const RO_CUSTOMER = {
 };
 
 const scenarios = [
-  { quantity: 1, label: 'ponizej limitu COD' },
-  { quantity: 2, label: 'na limicie COD' },
-  { quantity: 3, label: 'powyzej limitu COD' },
+  { quantity: 1, expectedCodVisible: true, label: 'ponizej limitu COD' },
+  { quantity: 2, expectedCodVisible: true, label: 'na limicie COD' },
+  { quantity: 3, expectedCodVisible: false, label: 'powyzej limitu COD' },
 ];
 
 for (const scenario of scenarios) {
-  test(`RO COD dla ${scenario.quantity}x Q1 - ${scenario.label}`, async ({ page, browserName }) => {
-    test.skip(browserName === 'firefox', 'RO checkout is currently unstable on Firefox.');
-    test.skip(scenario.quantity === 2, 'RO checkout is currently inconsistent at the exact 2x Q1 limit.');
-
-    const expectedCodVisible = getExpectedCodVisibility(scenario.quantity, browserName);
-
+  test(`RO COD dla ${scenario.quantity}x Q1 jest ${scenario.expectedCodVisible ? 'widoczne' : 'ukryte'} - ${scenario.label}`, async ({ page, browserName }) => {
     await seedCartWithQ1Quantity(page, scenario.quantity);
     await goToCheckout(page);
     await completePersonalInformation(page, browserName);
     await completeAddress(page, RO_CUSTOMER);
     await waitForShippingAndPaymentStep(page);
-    await assertRomanianCodVisibility(page, expectedCodVisible);
+    await assertRomanianCodVisibility(page, scenario.expectedCodVisible);
   });
-}
-
-function getExpectedCodVisibility(quantity, browserName) {
-  if (quantity === 1) {
-    return true;
-  }
-
-  if (quantity === 2) {
-    return browserName !== 'firefox';
-  }
-
-  return false;
 }
 
 async function seedCartWithQ1Quantity(page, quantity) {
@@ -466,7 +449,10 @@ async function addProductToCart(page, product, expectedCartCount) {
   await closeMenuOverlay(page);
   await expect(productCard).toBeVisible({ timeout: 15000 });
   await productCard.scrollIntoViewIfNeeded();
-  await productCard.locator('button.add-to-cart').click({ force: true });
+  const addToCartButton = productCard.locator('button.add-to-cart');
+  await addToCartButton.click({ timeout: 5000 }).catch(async () => {
+    await addToCartButton.click({ force: true });
+  });
   await expectCartCount(page, expectedCartCount);
   await page.waitForLoadState('domcontentloaded').catch(() => {});
 
@@ -484,22 +470,24 @@ async function expectCartCount(page, expectedCartCount) {
     return;
   }
 
-  await expect
-    .poll(async () => {
-      const headerText = await headerCartLink(page).innerText().catch(() => '');
-      if (headerText.includes(String(expectedCartCount))) {
-        return true;
-      }
+  const countIsUpdated = async () => {
+    const headerText = await headerCartLink(page).innerText().catch(() => '');
+    if (headerText.includes(String(expectedCartCount))) return true;
 
-      const titleText = (await headerCartLink(page).getAttribute('title').catch(() => '')) ?? '';
-      if (titleText.includes(String(expectedCartCount))) {
-        return true;
-      }
+    const titleText = (await headerCartLink(page).getAttribute('title').catch(() => '')) ?? '';
+    if (titleText.includes(String(expectedCartCount))) return true;
 
-      const badgeText = await page.locator('#header .cart-products-count, #header .cart-count, #header .ajax_cart_quantity').first().innerText().catch(() => '');
-      return badgeText.includes(String(expectedCartCount));
-    }, { timeout: 15000 })
-    .toBeTruthy();
+    const badgeText = await page.locator('#header .cart-products-count, #header .cart-count, #header .ajax_cart_quantity').first().innerText().catch(() => '');
+    return badgeText.includes(String(expectedCartCount));
+  };
+
+  const isUpdatedWithoutRefresh = await expect.poll(countIsUpdated, { timeout: 5000 }).toBeTruthy().then(() => true).catch(() => false);
+  if (isUpdatedWithoutRefresh) return;
+
+  // Firefox can keep a stale header badge after the second add-to-cart action.
+  // Refreshing reads the already persisted cart state without adding another item.
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await expect.poll(countIsUpdated, { timeout: 15000 }).toBeTruthy();
 }
 
 async function closeCartDialog(page) {

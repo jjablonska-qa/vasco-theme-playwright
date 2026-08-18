@@ -59,6 +59,10 @@ class FreeShippingAuditReporter {
   }
 
   onEnd() {
+    // Do not replace a previous free-shipping report with a misleading empty report
+    // when the current run belongs to another suite (for example VIES).
+    if (!this.countries.size) return;
+
     const allMarkets = [...new Set([...Object.keys(marketUrls), ...this.countries.keys()])];
     const countries = allMarkets
       .map(country => ({
@@ -80,7 +84,7 @@ class FreeShippingAuditReporter {
       + '<h2>Co sprawdzają te testy?</h2><p>Każdy test otwiera sklep danego rynku, dodaje produkt o wartości poniżej albo powyżej progu darmowej dostawy, przechodzi do checkoutu, uzupełnia wymagane dane adresowe i sprawdza dostępne metody dostawy. Weryfikuje, czy poniżej progu nie ma darmowej dostawy, a powyżej progu jest dostępna. Test zatrzymuje się przed płatnością i nie składa zamówienia.</p>'
       + '<h2>Podsumowanie per kraj</h2><table><thead><tr><th>Kraj</th><th>Passed</th><th>Failed</th><th>Skipped</th><th>Problemy</th><th>Suma czasu testów</th></tr></thead><tbody>' + (rows || '<tr><td colspan="6" class="empty">Nie uruchomiono testów free shipping.</td></tr>') + '</tbody></table>'
       + '<h2>Wykryte problemy</h2><table><thead><tr><th>Kraj</th><th>Przeglądarka</th><th>Test</th><th>Czas testu</th><th>Adres URL</th><th>Błąd</th></tr></thead><tbody>' + issueRows + '</tbody></table></body></html>';
-    fs.writeFileSync(path.join(process.cwd(), 'audit-report.html'), html, 'utf8');
+    fs.writeFileSync(path.join(process.cwd(), 'free-shipping-audit-report.html'), html, 'utf8');
   }
 }
 

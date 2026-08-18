@@ -7,10 +7,10 @@ const bg = {
   baseUrl: 'https://vasco-electronics.bg/',
   checkoutPath: '/poracka',
   allProductsPath: '/vsicki-produkti/',
-  currency: 'BGN',
-  currencyPattern: /лв\.?|BGN/i,
-  threshold: 97.79,
-  paidShippingBelowThreshold: 18,
+  currency: 'EUR',
+  currencyPattern: /€/,
+  threshold: 50,
+  paidShippingBelowThreshold: 9,
   products: {
     q1: '38',
     glass: '40',
@@ -48,7 +48,7 @@ for (const scenario of scenarios) {
     expect(shippingMethods, 'BG checkout should expose at least one shipping method.').not.toHaveLength(0);
     const paidShippingMethods = shippingMethods.filter(method => method.price > 0);
     expect(paidShippingMethods, 'BG checkout should expose at least one paid shipping method with an explicit price.').not.toHaveLength(0);
-    expect(paidShippingMethods.every(method => method.currencyMatches), 'Every numeric BG shipping price should use BGN.').toBeTruthy();
+    expect(paidShippingMethods.every(method => method.currencyMatches), 'Every numeric BG shipping price should use EUR.').toBeTruthy();
 
     if (scenario.expectedFreeShipping) {
       expect(
@@ -119,26 +119,24 @@ async function openCheckoutAndAddress(page) {
 }
 
 async function readShippingMethods(page) {
-  const radios = page.locator('input[type="radio"]');
-  const count = await radios.count();
-  const methods = [];
+  // The checkout now renders delivery methods as clickable cards rather than
+  // radio inputs. A delivery card contains the carrier logo and its price.
+  return page.locator('main div:has(img):has(p)').evaluateAll((cards, config) => {
+    const parse = text => {
+      if (/\b(?:free|gratis)\b|безплат/i.test(text)) return 0;
+      const match = text.match(/([\d\s]+(?:[,.]\d{1,2})?)\s*€/);
+      return match ? Number(match[1].replace(/\s/g, '').replace(',', '.')) : null;
+    };
 
-  for (let index = 0; index < count; index += 1) {
-    const radio = radios.nth(index);
-    const container = radio.locator('xpath=ancestor::*[self::li or self:div][.//label][1]').first();
-    const text = (await container.innerText().catch(() => '')) || (await radio.evaluate(element => element.parentElement?.innerText || ''));
-    const price = parsePrice(text);
-    if (price === null) continue;
-    methods.push({ text: text.replace(/\s+/g, ' ').trim(), price, currencyMatches: bg.currencyPattern.test(text) });
-  }
+    const methods = cards.map(card => {
+      const text = (card.innerText || '').replace(/\s+/g, ' ').trim();
+      return { text, price: parse(text), currencyMatches: /€/.test(text) };
+    }).filter(method => method.price !== null);
 
-  return methods;
-}
-
-function parsePrice(text) {
-  if (/\b(?:free|gratis)\b|безплат/i.test(text)) return 0;
-  const match = text.match(/([\d\s]+(?:[,.]\d{1,2})?)\s*(?:лв\.?|BGN)/i);
-  return match ? Number(match[1].replace(/\s/g, '').replace(',', '.')) : null;
+    return methods.filter((method, index, all) =>
+      all.findIndex(other => other.text === method.text) === index
+    );
+  }, { currencyPattern: bg.currencyPattern.source });
 }
 
 function formatMethods(methods) {

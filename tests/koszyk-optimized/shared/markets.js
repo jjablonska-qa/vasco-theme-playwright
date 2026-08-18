@@ -188,6 +188,15 @@ export const cartMarkets = [
     allProductsPattern: /Todos os produtos/i,
     menuPattern: /loja|shop|tradutor|tradutores|produtos/i,
   },
+  {
+    code: 'CA EN',
+    baseUrl: 'https://vasco-translator.ca/en/',
+    allProductsPath: '/en/all-products/',
+    cartPath: '/en/cart?action=show',
+    cartLabelPattern: /Cart/i,
+    allProductsPattern: /All products/i,
+    menuPattern: /shop|translator|translators|products/i,
+  },
 ];
 
 export const cartMarketsByCode = Object.fromEntries(cartMarkets.map(market => [market.code, market]));

@@ -37,6 +37,7 @@ export default defineConfig({
     ['./reporters/free-shipping-audit-reporter.cjs'],
     ['./reporters/vies-audit-reporter.cjs'],
     ['./reporters/cod-audit-reporter.cjs'],
+    ['./reporters/variant-audit-reporter.cjs'],
   ],
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {

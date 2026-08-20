@@ -11,6 +11,8 @@
     "test:koszyk:optimized:chromium": "npx playwright test tests/koszyk-optimized/markets/koszyk-optimized-*.spec.js --project=chromium",
     "test:koszyk:optimized:firefox": "npx playwright test tests/koszyk-optimized/markets/koszyk-optimized-*.spec.js --project=firefox",
     "test:koszyk:optimized:webkit": "npx playwright test tests/koszyk-optimized/markets/koszyk-optimized-*.spec.js --project=webkit",
+    "test:warianty": "npx playwright test tests/warianty/markets/warianty-bg.spec.js --project=chromium --workers=1",
+    "test:warianty:all": "npx playwright test tests/warianty/markets/warianty-*.spec.js --project=chromium --workers=1",
     "test:vies:chromium": "VIES_SERIAL=0 PW_WORKERS=6 npx playwright test tests/vies/vies-checkout-*.js --project=chromium --workers=6",
     "test:vies:firefox": "VIES_SERIAL=0 PW_WORKERS=6 npx playwright test tests/vies/vies-checkout-*.js --project=firefox --workers=6",
     "test:vies:webkit": "VIES_SERIAL=0 PW_WORKERS=6 npx playwright test tests/vies/vies-checkout-*.js --project=webkit --workers=6",
@@ -19,6 +21,7 @@
     "test:vies:headed:firefox": "npx playwright test tests/vies/vies-checkout-*.js --project=firefox --workers=1 --headed",
     "test:vies:headed:webkit": "npx playwright test tests/vies/vies-checkout-*.js --project=webkit --workers=1 --headed",
     "report:vies": "open vies-audit-report.html",
+    "report:warianty": "open variant-audit-report.html",
     "report:cod": "open cod-audit-report.html"
   },
   "keywords": [],
